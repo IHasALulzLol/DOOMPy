@@ -2,9 +2,6 @@ import pygame
 from settings import *
 from collections import deque
 from ray_casting import mapping
-from numba.core import types
-from numba.typed import Dict
-from numba import int32
 
 
 class Sprites:
@@ -154,9 +151,8 @@ class Sprites:
 
     @property
     def blocked_doors(self):
-        # Doors removed — return empty dict for compatibility with ray casting NPC function
-        blocked_doors = Dict.empty(key_type=types.UniTuple(int32, 2), value_type=int32)
-        return blocked_doors
+        # Doors removed — return empty dict for compatibility
+        return {}
 
 
 class SpriteObject:

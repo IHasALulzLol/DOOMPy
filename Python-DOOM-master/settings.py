@@ -1,4 +1,9 @@
 import math
+import sys
+
+# set to True when building with pygbag for itch.io
+# sockets and requests don't work in WebAssembly
+WEB_BUILD = sys.platform == 'emscripten'
 
 # game settings
 WIDTH = 1200

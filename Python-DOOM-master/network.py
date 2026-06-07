@@ -10,7 +10,7 @@ import time
 import requests   # pip install requests
 
 # ── change this to your Render URL after deploying ───────────────────────────
-MATCHMAKING_URL = 'https://doompy-matchmaking.onrender.com'
+MATCHMAKING_URL = 'https://doombetter.onrender.com'
 # For local testing use: 'http://127.0.0.1:9999'
 
 GAME_PORT = 9998   # UDP port for in-game peer data

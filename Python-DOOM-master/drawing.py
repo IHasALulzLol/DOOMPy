@@ -128,61 +128,96 @@ class Drawing:
             self.sfx.rotate(-1)
 
     def menu(self):
-        """Main menu → returns a LobbyResult from the lobby screen."""
+        """Main menu → returns a LobbyResult (or a stub on web builds)."""
+        from collections import namedtuple
+        LobbyResult = namedtuple('LobbyResult', ['action', 'code', 'host', 'port', 'server_name', 'private'])
+
+        # on WebAssembly (itch.io) skip lobby — no sockets available
+        if WEB_BUILD:
+            x = 0
+            pygame.mixer.music.load('sound/win.ogg')
+            pygame.mixer.music.play()
+            button_font = pygame.font.Font('font/font.ttf', 72)
+            label_font  = pygame.font.Font('font/font1.otf', 400)
+            start  = button_font.render('PLAY', 1, pygame.Color('lightgray'))
+            button_start = pygame.Rect(0, 0, 400, 150)
+            button_start.center = HALF_WIDTH, HALF_HEIGHT
+            exit_s = button_font.render('EXIT', 1, pygame.Color('lightgray'))
+            button_exit = pygame.Rect(0, 0, 400, 150)
+            button_exit.center = HALF_WIDTH, HALF_HEIGHT + 200
+            while True:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        pygame.quit(); sys.exit()
+                self.sc.blit(self.menu_picture, (0, 0), (x % WIDTH, HALF_HEIGHT, WIDTH, HEIGHT))
+                x += 1
+                color = randrange(40)
+                label = label_font.render('DOOMPy', 1, (color, color, color))
+                self.sc.blit(label, (15, -30))
+                pygame.draw.rect(self.sc, BLACK, button_start, border_radius=25, width=10)
+                self.sc.blit(start, (button_start.centerx - 95, button_start.centery - 70))
+                pygame.draw.rect(self.sc, BLACK, button_exit, border_radius=25, width=10)
+                self.sc.blit(exit_s, (button_exit.centerx - 85, button_exit.centery - 70))
+                mouse_pos   = pygame.mouse.get_pos()
+                mouse_click = pygame.mouse.get_pressed()
+                if button_start.collidepoint(mouse_pos):
+                    pygame.draw.rect(self.sc, BLACK, button_start, border_radius=25)
+                    self.sc.blit(start, (button_start.centerx - 95, button_start.centery - 70))
+                    if mouse_click[0]:
+                        return LobbyResult('solo', 'LOCAL', '', 0, '', False)
+                elif button_exit.collidepoint(mouse_pos):
+                    pygame.draw.rect(self.sc, BLACK, button_exit, border_radius=25)
+                    self.sc.blit(exit_s, (button_exit.centerx - 85, button_exit.centery - 70))
+                    if mouse_click[0]:
+                        pygame.quit(); sys.exit()
+                pygame.display.flip()
+                self.clock.tick(20)
+
+        # desktop — full lobby menu
         from lobby_menu import LobbyMenu
         x = 0
-        pygame.mixer.music.load('sound/win.mp3')
+        pygame.mixer.music.load('sound/win.ogg')
         pygame.mixer.music.play()
         button_font = pygame.font.Font('font/font.ttf', 72)
-        label_font = pygame.font.Font('font/font1.otf', 400)
-        start = button_font.render('START', 1, pygame.Color('lightgray'))
+        label_font  = pygame.font.Font('font/font1.otf', 400)
+        start  = button_font.render('START', 1, pygame.Color('lightgray'))
         button_start = pygame.Rect(0, 0, 400, 150)
         button_start.center = HALF_WIDTH, HALF_HEIGHT
-        exit_surf = button_font.render('EXIT', 1, pygame.Color('lightgray'))
+        exit_s = button_font.render('EXIT', 1, pygame.Color('lightgray'))
         button_exit = pygame.Rect(0, 0, 400, 150)
         button_exit.center = HALF_WIDTH, HALF_HEIGHT + 200
-
         lobby_result = None
         while lobby_result is None:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-
+                    pygame.quit(); sys.exit()
             self.sc.blit(self.menu_picture, (0, 0), (x % WIDTH, HALF_HEIGHT, WIDTH, HEIGHT))
             x += 1
-
             pygame.draw.rect(self.sc, BLACK, button_start, border_radius=25, width=10)
             self.sc.blit(start, (button_start.centerx - 130, button_start.centery - 70))
-
             pygame.draw.rect(self.sc, BLACK, button_exit, border_radius=25, width=10)
-            self.sc.blit(exit_surf, (button_exit.centerx - 85, button_exit.centery - 70))
-
+            self.sc.blit(exit_s, (button_exit.centerx - 85, button_exit.centery - 70))
             color = randrange(40)
             label = label_font.render('DOOMPy', 1, (color, color, color))
             self.sc.blit(label, (15, -30))
-
-            mouse_pos = pygame.mouse.get_pos()
+            mouse_pos   = pygame.mouse.get_pos()
             mouse_click = pygame.mouse.get_pressed()
             if button_start.collidepoint(mouse_pos):
                 pygame.draw.rect(self.sc, BLACK, button_start, border_radius=25)
                 self.sc.blit(start, (button_start.centerx - 130, button_start.centery - 70))
                 if mouse_click[0]:
-                    pygame.time.wait(120)   # debounce
+                    pygame.time.wait(120)
                     pygame.mouse.set_visible(True)
                     lobby = LobbyMenu(self.sc, self.clock, self.menu_picture)
                     lobby_result = lobby.run()
                     pygame.mouse.set_visible(False)
             elif button_exit.collidepoint(mouse_pos):
                 pygame.draw.rect(self.sc, BLACK, button_exit, border_radius=25)
-                self.sc.blit(exit_surf, (button_exit.centerx - 85, button_exit.centery - 70))
+                self.sc.blit(exit_s, (button_exit.centerx - 85, button_exit.centery - 70))
                 if mouse_click[0]:
-                    pygame.quit()
-                    sys.exit()
-
+                    pygame.quit(); sys.exit()
             pygame.display.flip()
             self.clock.tick(20)
-
         return lobby_result
 
 

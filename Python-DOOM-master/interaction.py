@@ -3,17 +3,13 @@ from map import world_map
 from ray_casting import mapping
 import math
 import pygame
-from numba import njit
 
 
-@njit(fastmath=True, cache=True)
 def ray_casting_npc_player(npc_x, npc_y, blocked_doors, world_map, player_pos):
     ox, oy = player_pos
     xm, ym = mapping(ox, oy)
     delta_x, delta_y = ox - npc_x, oy - npc_y
-    angle = math.atan2(delta_y, delta_x)
-    angle += math.pi
-    # ray casting
+    angle = math.atan2(delta_y, delta_x) + math.pi
     sin_a = math.sin(angle)
     cos_a = math.cos(angle)
     # verticals
@@ -124,5 +120,5 @@ class Interaction:
     def play_music(self):
         pygame.mixer.pre_init(44100, -16, 2, 2048)
         pygame.mixer.init()
-        pygame.mixer.music.load('sound/theme.mp3')
+        pygame.mixer.music.load('sound/theme.ogg')
         pygame.mixer.music.play(10)

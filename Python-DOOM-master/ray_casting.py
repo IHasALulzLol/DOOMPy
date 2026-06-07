@@ -1,15 +1,12 @@
 import pygame
 from settings import *
 from map import world_map, WORLD_WIDTH, WORLD_HEIGHT
-from numba import njit
 
 
-@njit(fastmath=True, cache=True)
 def mapping(a, b):
     return int((a // TILE) * TILE), int((b // TILE) * TILE)
 
 
-@njit(fastmath=True, cache=True)
 def ray_casting(player_pos, player_angle, world_map):
     casted_walls = []
     ox, oy = player_pos
@@ -42,10 +39,8 @@ def ray_casting(player_pos, player_angle, world_map):
                 break
             y += dy * TILE
 
-        # projection
         depth, offset, texture = (depth_v, yv, texture_v) if depth_v < depth_h else (depth_h, xh, texture_h)
         offset = int(offset) % TILE
-        # del_fish_eye = math.cos(player_angle - cur_angle)
         depth *= math.cos(player_angle - cur_angle)
         depth = max(depth, 0.00001)
         proj_height = int(PROJ_COEFF / depth)
@@ -58,9 +53,7 @@ def ray_casting(player_pos, player_angle, world_map):
 def ray_casting_walls(player, textures):
     walls = []
     casted_walls = ray_casting(player.pos, player.angle, world_map)
-    # wall shot
     wall_shot = casted_walls[CENTER_RAY][0], casted_walls[CENTER_RAY][2]
-    # ---------
     for ray, casted_values in enumerate(casted_walls):
         depth, offset, proj_height, texture = casted_values
         if proj_height > HEIGHT:
