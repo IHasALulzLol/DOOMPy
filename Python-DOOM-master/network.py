@@ -1,82 +1,75 @@
 """
-DOOMPy Network Client
-Handles:
-  - Matchmaking (talking to server.py)
-  - Peer game socket (UDP, talking to the host's game port)
+DOOMPy Network Client — HTTP edition
+Talks to the Flask matchmaking server via plain HTTP requests.
 """
 
 import socket
 import threading
 import json
 import time
+import requests   # pip install requests
 
-MATCHMAKING_HOST = '127.0.0.1'   # change to your server's IP / domain
-MATCHMAKING_PORT = 9999
-GAME_PORT = 9998                  # local UDP port for game data
+# ── change this to your Render URL after deploying ───────────────────────────
+MATCHMAKING_URL = 'https://doompy-matchmaking.onrender.com'
+# For local testing use: 'http://127.0.0.1:9999'
 
+GAME_PORT = 9998   # UDP port for in-game peer data
+
+
+# ── matchmaking ───────────────────────────────────────────────────────────────
 
 class MatchmakingClient:
-    """Synchronous TCP client for the matchmaking server."""
 
-    def __init__(self, host=MATCHMAKING_HOST, port=MATCHMAKING_PORT):
-        self.host = host
-        self.port = port
-        self._sock = None
-        self._buf = ''
+    def __init__(self, base_url=MATCHMAKING_URL):
+        self.base = base_url.rstrip('/')
+        self._session = requests.Session()
+        self._session.timeout = 6
 
     def connect(self):
-        self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._sock.settimeout(5)
-        self._sock.connect((self.host, self.port))
-        self._buf = ''
+        """Test connection — raises on failure."""
+        r = self._session.get(f'{self.base}/ping')
+        r.raise_for_status()
 
     def close(self):
-        if self._sock:
-            try:
-                self._sock.close()
-            except Exception:
-                pass
-            self._sock = None
-
-    def _send(self, data: dict) -> dict:
-        payload = json.dumps(data) + '\n'
-        self._sock.sendall(payload.encode('utf-8'))
-        # read until newline
-        while '\n' not in self._buf:
-            chunk = self._sock.recv(4096).decode('utf-8', errors='ignore')
-            if not chunk:
-                raise ConnectionError('server closed connection')
-            self._buf += chunk
-        line, self._buf = self._buf.split('\n', 1)
-        return json.loads(line.strip())
+        self._session.close()
 
     def list_lobbies(self):
-        """Returns list of public lobbies or raises on error."""
-        r = self._send({'cmd': 'list'})
-        if r.get('ok'):
-            return r.get('lobbies', [])
-        raise RuntimeError(r.get('error', 'unknown error'))
+        r = self._session.get(f'{self.base}/list')
+        data = r.json()
+        if data.get('ok'):
+            return data.get('lobbies', [])
+        raise RuntimeError(data.get('error', 'unknown error'))
 
     def create_lobby(self, name: str, private: bool, local_ip: str, port: int = GAME_PORT):
-        r = self._send({'cmd': 'create', 'name': name,
-                        'private': private, 'host': local_ip, 'port': port})
-        if r.get('ok'):
-            return r['code']
-        raise RuntimeError(r.get('error', 'unknown error'))
+        r = self._session.post(f'{self.base}/create', json={
+            'name': name, 'private': private, 'host': local_ip, 'port': port
+        })
+        data = r.json()
+        if data.get('ok'):
+            return data['code']
+        raise RuntimeError(data.get('error', 'unknown error'))
 
     def join_by_code(self, code: str):
-        """Returns (host_ip, port) tuple."""
-        r = self._send({'cmd': 'join', 'code': code.upper()})
-        if r.get('ok'):
-            return r['host'], r['port']
-        raise RuntimeError(r.get('error', 'lobby not found'))
+        """Returns (host_ip, port)."""
+        r = self._session.post(f'{self.base}/join', json={'code': code.upper()})
+        data = r.json()
+        if data.get('ok'):
+            return data['host'], data['port']
+        raise RuntimeError(data.get('error', 'lobby not found'))
 
     def join_any(self):
-        """Returns (code, host_ip, port) for a random public lobby."""
-        r = self._send({'cmd': 'join_any'})
-        if r.get('ok'):
-            return r['code'], r['host'], r['port']
-        raise RuntimeError(r.get('error', 'no public lobbies'))
+        """Returns (code, host_ip, port)."""
+        r = self._session.post(f'{self.base}/join_any')
+        data = r.json()
+        if data.get('ok'):
+            return data['code'], data['host'], data['port']
+        raise RuntimeError(data.get('error', 'no public lobbies'))
+
+    def heartbeat(self, code: str):
+        try:
+            self._session.post(f'{self.base}/heartbeat', json={'code': code})
+        except Exception:
+            pass
 
 
 def get_local_ip():
@@ -91,14 +84,12 @@ def get_local_ip():
         return '127.0.0.1'
 
 
-# ---------------------------------------------------------------------------
-# Lightweight UDP game-state layer (placeholder for actual multiplayer loop)
-# ---------------------------------------------------------------------------
+# ── UDP game-state layer ──────────────────────────────────────────────────────
 
 class GameNetwork:
     """
     UDP socket for sending/receiving player state each frame.
-    Format: JSON line → {"id": str, "x": float, "y": float, "angle": float, "hp": int}
+    Packet format: JSON  {"id": str, "x": float, "y": float, "angle": float, "hp": int}
     """
 
     def __init__(self, port=GAME_PORT):
@@ -106,7 +97,7 @@ class GameNetwork:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind(('', port))
         self.sock.setblocking(False)
-        self.peers = {}       # addr -> latest state dict
+        self.peers = {}    # addr -> latest state dict
         self._running = True
         self._thread = threading.Thread(target=self._recv_loop, daemon=True)
         self._thread.start()

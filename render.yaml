@@ -1,11 +1,8 @@
 services:
-  - type: worker
+  - type: web
     name: doompy-matchmaking
     runtime: python
     rootDir: Python-DOOM-master
-    buildCommand: echo "no build needed"
+    buildCommand: pip install flask
     startCommand: python server.py
     plan: free
-    envVars:
-      - key: PORT
-        value: 9999
